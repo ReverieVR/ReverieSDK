@@ -59,25 +59,35 @@ namespace ReverieSDK
             JsonDocument contents = JsonDocument.Parse(contentsJson);
             JsonElement root = contents.RootElement;
 
+            // Loop through each element in the array
             foreach (JsonElement element in root.EnumerateArray())
             {
-                // Access the "type" property
-                string type = element.GetProperty("type").GetString();
+                // Access the "download_url" property from each object
+                string downloadUrl = element.GetProperty("download_url").GetString();
 
-                // Check if it's a file or a folder
-                if (type == "file")
+                if (downloadUrl.Contains(".unitypackage"))
                 {
-                    // For files, access the "download_url" property
-                    string downloadUrl = element.GetProperty("download_url").GetString();
                     Debug.Log(downloadUrl);
-                }
-                else if (type == "dir")
-                {
-                    // For folders, access the "html_url" property
-                    string folderUrl = element.GetProperty("html_url").GetString();
-                    Debug.Log(folderUrl);
+
                 }
             }
+
+            //foreach(var file in contents.RootElement.EnumerateArray())
+            //{
+            //    var fileType = (string)file["type"];
+            //    if (fileType == "dir")
+            //    {
+            //        var directoryContentsUrl = (string)file["url"];
+            //        // use this URL to list the contents of the folder
+            //        Console.WriteLine($"DIR: {directoryContentsUrl}");
+            //    }
+            //    else if (fileType == "file")
+            //    {
+            //        var downloadUrl = (string)file["download_url"];
+            //        // use this URL to download the contents of the file
+            //        Console.WriteLine($"DOWNLOAD: {downloadUrl}");
+            //    }
+            //}
         }
         
         [MenuItem("Reverie SDK/Check Project Settings")]
