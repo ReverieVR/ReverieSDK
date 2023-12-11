@@ -7,7 +7,7 @@ using UnityEditor.Callbacks;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     [InitializeOnLoad]
     public static class Reverie_SDK

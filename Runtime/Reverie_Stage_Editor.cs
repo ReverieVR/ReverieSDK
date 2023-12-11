@@ -2,10 +2,8 @@ using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
-using Cascadian.SDK;
 
-
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     [CustomEditor(typeof(Reverie_Stage))]
     public class Reverie_Stage_Editor : Editor

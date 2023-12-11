@@ -1,13 +1,11 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Serialization;
 
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     [ExecuteInEditMode]
     public class Reverie_Avatar : MonoBehaviour

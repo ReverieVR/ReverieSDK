@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     public class Reverie_SRanipalFaceTracking : MonoBehaviour
     {

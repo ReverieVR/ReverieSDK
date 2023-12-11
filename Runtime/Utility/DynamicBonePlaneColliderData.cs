@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     public class DynamicBonePlaneColliderData : DynamicBoneColliderBaseData
     {

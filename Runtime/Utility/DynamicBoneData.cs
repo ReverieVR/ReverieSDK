@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     public class DynamicBoneData : MonoBehaviour
     {

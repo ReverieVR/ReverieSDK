@@ -4,9 +4,8 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.Serialization;
 
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     [ExecuteInEditMode]
     public class Reverie_Stage : MonoBehaviour

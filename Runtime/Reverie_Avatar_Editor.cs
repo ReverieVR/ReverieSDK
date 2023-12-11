@@ -8,7 +8,7 @@ using UnityEngine;
 using UnityEditor;
 
 
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     [CustomEditor(typeof(Reverie_Avatar))]
     public class Reverie_Avatar_Editor : Editor

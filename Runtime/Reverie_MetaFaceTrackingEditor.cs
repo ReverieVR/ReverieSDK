@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     [CustomEditor(typeof(Reverie_MetaFaceTracking))]
     public class Subworks_MetaFaceTrackingEditor : Editor

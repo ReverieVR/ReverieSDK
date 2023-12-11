@@ -1,4 +1,4 @@
-﻿namespace Cascadian.SDK
+﻿namespace ReverieSDK
 {
     public class DynamicBoneColliderData : DynamicBoneColliderBaseData
     {

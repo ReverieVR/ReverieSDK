@@ -2,7 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Cascadian.SDK
+namespace ReverieSDK
 {
     [CustomEditor(typeof(Reverie_ARKitFaceTracking))]
     public class Subworks_ARKitFaceTrackingEditor : Editor
