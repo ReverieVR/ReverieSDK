@@ -23,7 +23,7 @@ namespace ReverieSDK
         }
 
         [MenuItem("Reverie SDK/Check for Updates")]
-        static void CheckForUpdates()
+        static async void CheckForUpdates()
         {
             string currentVersion = File.ReadAllText(Application.dataPath + "/ReverieSDK/version.json");
             currentVersion = currentVersion.Split(':')[1].Split("\"")[1];
@@ -32,62 +32,50 @@ namespace ReverieSDK
             string newVersion = wc.DownloadString("https://raw.githubusercontent.com/ReverieVR/ReverieSDK/main/version.json");
             newVersion = newVersion.Split(':')[1].Split("\"")[1];
             
-            Debug.Log("Current SDK Version: " + currentVersion);
-            Debug.Log("Latest SDK Version: " + newVersion);
+            Debug.Log("Current Reverie SDK Version: " + currentVersion);
+            Debug.Log("Latest Reverie SDK Version: " + newVersion);
 
-            if (Convert.ToInt16(currentVersion.Replace(".", "")) < Convert.ToInt16(newVersion.Replace(".", "")))
+            bool needsUpdate = Convert.ToInt16(currentVersion.Replace(".", "")) < Convert.ToInt16(newVersion.Replace(".", ""));
+            
+            if (needsUpdate)
             {
+                bool update = EditorUtility.DisplayDialog("Reverie SDK Updater",
+                    $"Current SDK Version: {currentVersion}\nLatest SDK Version: {newVersion}\n\n" +
+                    $"An update is available! Would you like to update now?",
+                    "Yes",
+                    "No"
+                );
+                
+                if (update == false) return;
+                
                 Debug.Log("Updating to Latest SDK Version " + newVersion + "...");
                 
-                DownloadFilesFromGithub();
-            }
+                var httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.UserAgent.Add(
+                    new ProductInfoHeaderValue("ReverieSDK", "1"));
+                var repo = "ReverieVR/ReverieSDK";
+                var contentsUrl = $"https://api.github.com/repos/{repo}/contents";
+                var contentsJson = await httpClient.GetStringAsync(contentsUrl);
+                Debug.Log(contentsJson);
             
-            
-            
-        }
+                JsonDocument contents = JsonDocument.Parse(contentsJson);
+                JsonElement root = contents.RootElement;
 
-        static async void DownloadFilesFromGithub()
-        {
-            var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.UserAgent.Add(
-                new ProductInfoHeaderValue("ReverieSDK", "1"));
-            var repo = "ReverieVR/ReverieSDK";
-            var contentsUrl = $"https://api.github.com/repos/{repo}/contents";
-            var contentsJson = await httpClient.GetStringAsync(contentsUrl);
-            Debug.Log(contentsJson);
-            
-            JsonDocument contents = JsonDocument.Parse(contentsJson);
-            JsonElement root = contents.RootElement;
-
-            // Loop through each element in the array
-            foreach (JsonElement element in root.EnumerateArray())
-            {
-                // Access the "download_url" property from each object
-                string downloadUrl = element.GetProperty("download_url").GetString();
-
-                if (downloadUrl.Contains(".unitypackage"))
+                // Loop through each element in the array
+                foreach (JsonElement element in root.EnumerateArray())
                 {
-                    Debug.Log(downloadUrl);
-
+                    // Access the "download_url" property from each object
+                    string downloadUrl = element.GetProperty("download_url").GetString();
+                    if (downloadUrl == null) continue;
+                    if (downloadUrl.Contains(".unitypackage") && !downloadUrl.Contains(".meta"))
+                    {
+                        string path = Application.dataPath + "/ReverieSDK/";
+                        path += downloadUrl.Split('/')[downloadUrl.Split('/').Length - 1];
+                        wc.DownloadFile (downloadUrl, path);
+                        AssetDatabase.ImportPackage(path, true);
+                    }
                 }
             }
-
-            //foreach(var file in contents.RootElement.EnumerateArray())
-            //{
-            //    var fileType = (string)file["type"];
-            //    if (fileType == "dir")
-            //    {
-            //        var directoryContentsUrl = (string)file["url"];
-            //        // use this URL to list the contents of the folder
-            //        Console.WriteLine($"DIR: {directoryContentsUrl}");
-            //    }
-            //    else if (fileType == "file")
-            //    {
-            //        var downloadUrl = (string)file["download_url"];
-            //        // use this URL to download the contents of the file
-            //        Console.WriteLine($"DOWNLOAD: {downloadUrl}");
-            //    }
-            //}
         }
         
         [MenuItem("Reverie SDK/Check Project Settings")]
