@@ -56,7 +56,6 @@ namespace ReverieSDK
                 var repo = "ReverieVR/ReverieSDK";
                 var contentsUrl = $"https://api.github.com/repos/{repo}/contents";
                 var contentsJson = await httpClient.GetStringAsync(contentsUrl);
-                Debug.Log(contentsJson);
             
                 JsonDocument contents = JsonDocument.Parse(contentsJson);
                 JsonElement root = contents.RootElement;
@@ -72,7 +71,7 @@ namespace ReverieSDK
                         string path = Application.dataPath + "/ReverieSDK/";
                         path += downloadUrl.Split('/')[downloadUrl.Split('/').Length - 1];
                         wc.DownloadFile (downloadUrl, path);
-                        AssetDatabase.ImportPackage(path, true);
+                        AssetDatabase.ImportPackage(path, false);
                     }
                 }
             }
