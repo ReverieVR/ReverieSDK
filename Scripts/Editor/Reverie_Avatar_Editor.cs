@@ -1,11 +1,10 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.ComponentModel;
 using UnityEngine;
 
 #if UNITY_EDITOR
+using System.Reflection;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 
 
 namespace ReverieSDK
@@ -13,27 +12,41 @@ namespace ReverieSDK
     [CustomEditor(typeof(Reverie_Avatar))]
     public class Reverie_Avatar_Editor : Editor
     {
-        private bool _editEyePos = false;
-        private bool _editMouthPos = false;
-        private bool _editEyeConstraint = false;
-        private bool _visemeFoldout = false;
+        public bool togglesFoldout = false;
+        public Reverie_Avatar avatar;
+        
+        private bool editEyePos = false;
+        private bool editMouthPos = false;
+        private bool editEyeConstraint = false;
+        private bool visemeFoldout = false;
         private GUIStyle selctionLabelStyle;
-        
         private bool requirementsNotMet;
+        private Vector2 animationScrollPos = Vector2.zero;
         
+        private void OnEnable()
+        {
+            avatar = (Reverie_Avatar)target;
+        }
+
         public override void OnInspectorGUI()
         {
+            if (Application.isPlaying)
+            {
+                base.OnInspectorGUI();
+                return;
+            };
+            
             selctionLabelStyle = EditorStyles.label;
             selctionLabelStyle.richText = true;
             
-            Reverie_Avatar avatar = (Reverie_Avatar)target;
-
-            GetErrors(avatar);
+            CheckForErrors(avatar);
             
             EditorGUI.BeginDisabledGroup(requirementsNotMet);
 
             GUILayout.Space(10f);
 
+            EditorGUI.BeginChangeCheck();
+            
             using (new GUILayout.VerticalScope("box"))
             {
                 AreaTitle("Avatar Settings");
@@ -42,7 +55,7 @@ namespace ReverieSDK
                 
                 using (new GUILayout.HorizontalScope())
                 {
-                    CenterLabelVertical("Face Mesh:");
+                    CenterLabelVertical("Face Mesh:", 0f, "Mesh that contain the face blendshapes");
 
                     EditorGUI.BeginChangeCheck();
                     avatar.faceMesh = (SkinnedMeshRenderer)EditorGUILayout.ObjectField(
@@ -56,7 +69,7 @@ namespace ReverieSDK
                 
                 using (new GUILayout.HorizontalScope())
                 {
-                    CenterLabelVertical("Animator Controller:");
+                    CenterLabelVertical("Animator Controller:", 0f, "Animator Controller to apply over top of normal reverie animations");
 
                     avatar.avatarController = (RuntimeAnimatorController)EditorGUILayout.ObjectField(
                         avatar.avatarController,
@@ -74,11 +87,12 @@ namespace ReverieSDK
 
                     using (new GUILayout.HorizontalScope())
                     {
-                        if (_editEyePos) GUI.color = Color.green;
-                        if (GUILayout.Button("Edit Eye Position"))
+                        if (editEyePos) GUI.color = Color.green;
+                        if (GUILayout.Button(new GUIContent("Edit Eye Position", "This is where the virtual camera will be placed" +
+                            "for your view. It is recommended to place this roughly between the eyes."), GUILayout.Height(20f)))
                         {
-                            _editMouthPos = false;
-                            _editEyePos = !_editEyePos;
+                            editMouthPos = false;
+                            editEyePos = !editEyePos;
                             SceneView.RepaintAll();
                         }
 
@@ -88,7 +102,7 @@ namespace ReverieSDK
                         if (EditorGUI.EndChangeCheck())
                         {
                             SceneView.RepaintAll();
-                            Undo.RegisterCompleteObjectUndo(avatar, "Change Mouth Position");
+                            Undo.RegisterCompleteObjectUndo(avatar, "Change Eye Position");
                         }
                     }
 
@@ -120,11 +134,11 @@ namespace ReverieSDK
                     using (new GUILayout.HorizontalScope())
                     {
                         var buttonStyle = new GUIStyle(GUI.skin.button);
-                        if (_editEyeConstraint) GUI.color = Color.green;
+                        if (editEyeConstraint) GUI.color = Color.green;
                         if (GUILayout.Button("Edit Eye Constraints", buttonStyle, GUILayout.Height(20f)))
                         {
-                            _editEyeConstraint = !_editEyeConstraint;
-                            if (!_editEyeConstraint)
+                            editEyeConstraint = !editEyeConstraint;
+                            if (!editEyeConstraint)
                             {
                                 if (EditorGUI.EndChangeCheck()) avatar.PreviewAngleLimit(Reverie_Avatar.EyeConstraintDirection.None);
                             }
@@ -133,7 +147,7 @@ namespace ReverieSDK
                         GUI.color = Color.white;
                     }
 
-                    if (_editEyeConstraint)
+                    if (editEyeConstraint)
                     {
                         using (new GUILayout.HorizontalScope())
                         {
@@ -141,7 +155,7 @@ namespace ReverieSDK
                             GUILayout.Label("Up", GUILayout.Width(50f));
                             EditorGUI.BeginChangeCheck();
                             avatar.angleLimitUp = EditorGUILayout.Slider(avatar.angleLimitUp, 0f, 90f);
-                            if (EditorGUI.EndChangeCheck() && _editEyeConstraint)
+                            if (EditorGUI.EndChangeCheck() && editEyeConstraint)
                                 avatar.PreviewAngleLimit(Reverie_Avatar.EyeConstraintDirection.Up);
                         }
 
@@ -151,7 +165,7 @@ namespace ReverieSDK
                             GUILayout.Label("Down", GUILayout.Width(50f));
                             EditorGUI.BeginChangeCheck();
                             avatar.angleLimitDown = EditorGUILayout.Slider(avatar.angleLimitDown, 0f, 90f);
-                            if (EditorGUI.EndChangeCheck() && _editEyeConstraint)
+                            if (EditorGUI.EndChangeCheck() && editEyeConstraint)
                                 avatar.PreviewAngleLimit(Reverie_Avatar.EyeConstraintDirection.Down);
                         }
 
@@ -161,7 +175,7 @@ namespace ReverieSDK
                             GUILayout.Label("Left", GUILayout.Width(50f));
                             EditorGUI.BeginChangeCheck();
                             avatar.angleLimitLeft = EditorGUILayout.Slider(avatar.angleLimitLeft, 0f, 90f);
-                            if (EditorGUI.EndChangeCheck() && _editEyeConstraint)
+                            if (EditorGUI.EndChangeCheck() && editEyeConstraint)
                                 avatar.PreviewAngleLimit(Reverie_Avatar.EyeConstraintDirection.Left);
                         }
 
@@ -171,7 +185,7 @@ namespace ReverieSDK
                             GUILayout.Label("Right", GUILayout.Width(50f));
                             EditorGUI.BeginChangeCheck();
                             avatar.angleLimitRight = EditorGUILayout.Slider(avatar.angleLimitRight, 0f, 90f);
-                            if (EditorGUI.EndChangeCheck() && _editEyeConstraint)
+                            if (EditorGUI.EndChangeCheck() && editEyeConstraint)
                                 avatar.PreviewAngleLimit(Reverie_Avatar.EyeConstraintDirection.Right);
                         }
                     }
@@ -210,11 +224,12 @@ namespace ReverieSDK
                     using (new GUILayout.HorizontalScope())
                     {
                         var buttonStyle = new GUIStyle(GUI.skin.button);
-                        if (_editMouthPos) GUI.color = Color.green;
-                        if (GUILayout.Button("Edit Mouth Position", buttonStyle))
+                        if (editMouthPos) GUI.color = Color.green;
+                        if (GUILayout.Button(new GUIContent("Edit Mouth Position", "This is where your speech will be transmitted from."),
+                            buttonStyle, GUILayout.Height(20f)))
                         {
-                            _editEyePos = false;
-                            _editMouthPos = !_editMouthPos;
+                            editEyePos = false;
+                            editMouthPos = !editMouthPos;
                             SceneView.RepaintAll();
                         }
 
@@ -233,15 +248,15 @@ namespace ReverieSDK
                         using (new GUILayout.HorizontalScope())
                         {
                             GUILayout.Space(10);
-                            _visemeFoldout = EditorGUILayout.Foldout(_visemeFoldout, "Visemes");
-
+                            visemeFoldout = EditorGUILayout.Foldout(visemeFoldout, new GUIContent("Visemes", "These are the" +
+                                " blendshapes that will be used for auto lip tracking using your microphone."));
                             if (GUILayout.Button("Auto Fill Visemes", GUILayout.Height(20f)))
                             {
                                 avatar.AutoFillVisemes();
                             }
                         }
 
-                        if (_visemeFoldout)
+                        if (visemeFoldout)
                         {
                             for (int i = 0; i < Enum.GetNames(typeof(Reverie_Avatar._visemes)).Length; i++)
                             {
@@ -251,9 +266,14 @@ namespace ReverieSDK
                             }
                         }
                     }
-
-                    serializedObject.Update();
                 }
+                
+                GUILayout.Space(10f);
+                
+                // Toggle Animations
+                animationScrollPos = EditorGUILayout.BeginScrollView(animationScrollPos, GUILayout.ExpandHeight(true));
+                ReverieAvatarToggleGroups_Editor.GroupList(this);
+                EditorGUILayout.EndScrollView();
             }
 
             GUILayout.Space(10f);
@@ -265,7 +285,7 @@ namespace ReverieSDK
                 
                 avatar.avatarBundleName = EditorGUILayout.TextField("Avatar Bundle Name", avatar.avatarBundleName);
                 
-                using (var horizontalScope = new GUILayout.HorizontalScope("box"))
+                using (new GUILayout.HorizontalScope("box"))
                 {
                     var btnstyle = GUI.skin.button;
                     btnstyle.richText = true;
@@ -273,41 +293,65 @@ namespace ReverieSDK
                             GUILayout.Height(40f)))
                     {
                         avatar.BuildAvatar();
+                        GUIUtility.ExitGUI();
                     }
                 }
             }
-            
             EditorGUI.EndDisabledGroup();
+
+            if (EditorGUI.EndChangeCheck()) EditorSceneManager.MarkSceneDirty(avatar.gameObject.scene);
+            serializedObject.Update();
+
         }
 
-        private void GetErrors(Reverie_Avatar avatar)
+        private void CheckForErrors(Reverie_Avatar avatar)
         {
+            bool isWarning = false;
+            
             if (avatar.avatarAnimator == null)
             {
                 avatar.avatarAnimator = avatar.GetComponent<Animator>();
                 if (avatar.avatarAnimator == null)
                 {
                     EditorGUILayout.HelpBox("Avatar must have an Animator component attached", MessageType.Error);
-                    requirementsNotMet = true;
-                    return;
+                    isWarning = true;
                 }
             }
             if (avatar.avatarAnimator.avatar == null || avatar.avatarAnimator.avatar.isHuman == false)
             {
                 EditorGUILayout.HelpBox("Please assign a valid Humanoid Avatar Definition to the Animator.", MessageType.Error);
-                requirementsNotMet = true;
-                return;
+                isWarning = true;
             }
             if (avatar.avatarAnimator.GetBoneTransform(HumanBodyBones.LeftToes) == null || avatar.avatarAnimator.GetBoneTransform(HumanBodyBones.RightToes) == null)
             {
                 EditorGUILayout.HelpBox("Please assign toe bones to the Avatar Humanoid Description", MessageType.Error);
-                requirementsNotMet = true;
-                return;
+                isWarning = true;
+            }
+
+            // Check model import settings
+            string path = AssetDatabase.GetAssetPath(this.avatar.gameObject.GetComponentInChildren<SkinnedMeshRenderer>().sharedMesh);
+            ModelImporter importer = AssetImporter.GetAtPath(path) as ModelImporter;
+            importer.isReadable = true;
+ 
+            //Force legacy blendshape normals
+            string pName = "legacyComputeAllNormalsFromSmoothingGroupsWhenMeshHasBlendShapes";
+            PropertyInfo prop = importer.GetType().GetProperty(pName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            if ((bool)prop.GetValue(importer) == false)
+            {
+                using (new GUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.HelpBox("Please enable LegacyBlendShapeNormals on model import settings.", MessageType.Error);
+                    if (GUILayout.Button("Fix", GUILayout.Width(100), GUILayout.ExpandHeight(true)))
+                    {
+                        prop.SetValue(importer, true);
+                        importer.SaveAndReimport();
+                        avatar.GetDefaultValues();
+                    }
+                }
+                isWarning = true;
             }
             
-            if (requirementsNotMet) avatar.GetDefaultValues();
-            
-            requirementsNotMet = false;
+            requirementsNotMet = isWarning;
             
             GetWarnings(avatar);
         }
@@ -317,7 +361,7 @@ namespace ReverieSDK
             {
                 EditorGUILayout.HelpBox("Your Avatar does not have eye bones assigned to your Humanoid Description. Is this what you want?", MessageType.Warning);
             }
-            else if (avatar.leftEye != null && avatar.rightEye != null)
+            else if (avatar.leftEye != null && avatar.rightEye != null && !editEyeConstraint)
             {
                 if (avatar.leftEye.up.y < 0.98f || avatar.rightEye.up.y < 0.98f)
                 {
@@ -336,13 +380,13 @@ namespace ReverieSDK
             }
         }
 
-        private void CenterLabelVertical(string text, float width = 0)
+        private void CenterLabelVertical(string text, float width = 0, string tooltip = "")
         {
             using (var areaScope = new GUILayout.VerticalScope())
             {
                 GUILayout.FlexibleSpace();
-                if (width > 0) GUILayout.Label(text, GUILayout.Width(width));
-                else GUILayout.Label(text);
+                if (width > 0) GUILayout.Label(new GUIContent(text, tooltip), GUILayout.Width(width));
+                else GUILayout.Label(new GUIContent(text, tooltip));
                 GUILayout.FlexibleSpace();
             }
         }
@@ -351,27 +395,29 @@ namespace ReverieSDK
         {
             Reverie_Avatar avatar = (Reverie_Avatar)target;
 
-            if (_editEyePos)
+            Vector3 posOffset = new Vector3(avatar.transform.position.x, 0, avatar.transform.position.z);
+            
+            if (editEyePos)
             {
                 EditorGUI.BeginChangeCheck();
                 Vector3 newTargetPosition =
-                    Handles.PositionHandle(avatar.eyePositon + avatar.transform.position, Quaternion.identity);
+                    Handles.PositionHandle(avatar.eyePositon + posOffset, avatar.transform.rotation);
                 if (EditorGUI.EndChangeCheck())
                 {
                     Undo.RecordObject(avatar, "Change Eye Position");
-                    avatar.eyePositon = newTargetPosition - avatar.transform.position;
+                    avatar.eyePositon = newTargetPosition - posOffset;
                 }
             }
             
-            if (_editMouthPos)
+            if (editMouthPos)
             {
                 EditorGUI.BeginChangeCheck();
                 Vector3 newTargetPosition =
-                    Handles.PositionHandle(avatar.mouthPositon + avatar.transform.position, avatar.transform.rotation);
+                    Handles.PositionHandle(avatar.mouthPositon + posOffset, avatar.transform.rotation);
                 if (EditorGUI.EndChangeCheck())
                 {
                     Undo.RecordObject(avatar, "Change Mouth Position");
-                    avatar.mouthPositon = newTargetPosition - avatar.transform.position;
+                    avatar.mouthPositon = newTargetPosition - posOffset;
                 }
             }
         }

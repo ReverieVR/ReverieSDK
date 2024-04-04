@@ -19,7 +19,7 @@ namespace ReverieSDK
 
             if (_foldoutToggle)
             {
-                for (int i = 0; i < Enum.GetNames(typeof(Reverie_SRanipalFaceTracking.SRanipalExpression)).Length - 1; i++)
+                for (int i = 0; i < Enum.GetNames(typeof(Reverie_SRanipalFaceTracking.SRanipalExpression)).Length - 2; i++)
                 {
                     sranipalFaceTracking.blendshapeIndexes[i] = EditorGUILayout.Popup(
                         Enum.GetNames(typeof(Reverie_SRanipalFaceTracking.SRanipalExpression))[i],

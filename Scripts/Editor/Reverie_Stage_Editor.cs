@@ -23,9 +23,8 @@ namespace ReverieSDK
             {
                 AreaTitle("Stage Spawn");
                 
-                using (var horizontalScope = new GUILayout.HorizontalScope())
+                using (new GUILayout.HorizontalScope())
                 {
-                    var buttonStyle = new GUIStyle(GUI.skin.button);
                     if (_editSpawnPos) GUI.color = Color.green;
                     if (GUILayout.Button("Edit Spawn Position", GUILayout.Height(30f)))
                     {
@@ -45,7 +44,7 @@ namespace ReverieSDK
             GUILayout.Space(10f);
             
             // Build Avatar
-            using (var areaScope = new GUILayout.VerticalScope("box"))
+            using (new GUILayout.VerticalScope("box"))
             {
                 AreaTitle("Export Stage");
                 
@@ -58,6 +57,7 @@ namespace ReverieSDK
                     if (GUILayout.Button($"<size=14><b><color=white>Build and Save</color></b></size>", GUILayout.Height(40f)))
                     {
                         stage.BuildStage();
+                        GUIUtility.ExitGUI();
                     }
                 }
             }
@@ -65,7 +65,7 @@ namespace ReverieSDK
 
         private void AreaTitle(string title)
         {
-            using (var horizontalScope = new GUILayout.HorizontalScope())
+            using (new GUILayout.HorizontalScope())
             {
                 GUILayout.FlexibleSpace();
                 GUILayout.Label($"<size=14><b><color=white>{title}</color></b></size>", selctionLabelStyle);

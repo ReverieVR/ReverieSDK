@@ -38,6 +38,9 @@ namespace ReverieSDK
             Down
         }   
         
+
+        public static event Action<Reverie_Avatar> AvatarLoaded;
+        public List<AvatarToggle> avatarToggles = new List<AvatarToggle>();
         public RuntimeAnimatorController avatarController;
         public int[] visemeList = new int[0];
         public Vector3 eyePositon;
@@ -53,15 +56,47 @@ namespace ReverieSDK
         public float angleLimitRight = 20f;
         public int leftEyeBlinkIndex = -1;
         public int rightEyeBlinkIndex = -1; 
-        public string avatarBundleName = null;
+        public string avatarBundleName;
         public List<string> faceMeshBlendshapeNames = new List<string>();
         public Animator avatarAnimator;
         public bool usingEyes = true;
+        private bool initialized;
+        
+        
+        [Serializable]
+        public class AvatarToggle
+        {
+            public string toggleName = "Toggle";
+            public int toggleObjectCount = 0;
+            public List<GameObject> toggleObject = new List<GameObject>();
+            public List<bool> objectOffStates = new List<bool>();
+            public List<bool> objectOnStates = new List<bool>();
+            
+            public int toggleShapekeyCount = 0;
+            public List<SkinnedMeshRenderer> shapekeyMesh = new List<SkinnedMeshRenderer>();
+            public List<int> shapekeyIndex = new List<int>();
+            public List<string> shapekeyName = new List<string>();
+            public List<float> shapekeyOffStates = new List<float>();
+            public List<float> shapekeyOnStates = new List<float>();
+        }
+        
         #if UNITY_EDITOR
         
         private void Awake()
         {
-            GetDefaultValues();
+            if (initialized == false)
+            {
+                GetDefaultValues();
+                initialized = true;
+            }
+        }
+        
+        private void Start()
+        {
+            if (Application.isPlaying)
+            {
+                AvatarLoaded?.Invoke(this);
+            }
         }
         
         public void GetDefaultValues()
@@ -165,13 +200,15 @@ namespace ReverieSDK
         
         private void OnDrawGizmosSelected()
         {
+            Vector3 posOffset = new Vector3(transform.position.x, 0, transform.position.z);
+            
             // Eye Pos
             Gizmos.color = Color.green;
-            Gizmos.DrawSphere(eyePositon + transform.position, 0.01f);
+            Gizmos.DrawSphere(eyePositon + posOffset, 0.01f);
             
             // Mouth Pos
             Gizmos.color = Color.cyan;
-            Gizmos.DrawSphere(mouthPositon + transform.position, 0.01f);
+            Gizmos.DrawSphere(mouthPositon + posOffset, 0.01f);
         }
 
         public void AutoFillVisemes()
@@ -213,39 +250,47 @@ namespace ReverieSDK
             }
         }
         
-        public void BuildAvatar()
+        public async void BuildAvatar()
         {
-            GameObject clone = Instantiate(gameObject);
+            // Check if Scene is saved
+            if (await BundleExportUtility.CheckForUnsavedScene()) return;
             
-            bool removeScripts = CheckForMissingScripts(clone);
-            if (removeScripts == false) return;
-
-            ReplaceDynamicBoneWithData(clone);
+            // Get Shader Variants to bundle with Avatar
+            string shaderVariants = await BundleExportUtility.GetShaderVariants(avatarBundleName);
             
-            string localPath = "Assets/" + avatarBundleName + ".prefab";
-
+            // If user does not want to remove missing scripts, abort build!
+            if (BundleExportUtility.CheckAvatarForMissingScripts(gameObject)) return;
+            
             // Create the new Prefab and log whether Prefab was saved successfully.
-            bool prefabSuccess = PrefabUtility.SaveAsPrefabAsset(clone, localPath, out prefabSuccess);
-            if (prefabSuccess == false) Debug.LogError("Prefab failed to save" + prefabSuccess);
-
+            string localPath = "Assets/" + avatarBundleName + ".prefab";
+            bool prefabSuccess = PrefabUtility.SaveAsPrefabAsset(gameObject, localPath, out prefabSuccess);
+            if (prefabSuccess == false) Debug.LogError("Prefab failed to save" + false);
             
+            // Access prefab and modify/remove anything needed
+            var prefabRoot = PrefabUtility.LoadPrefabContents(localPath);
+            BundleExportUtility.StripAudioListeners(prefabRoot);
+            ReplaceDynamicBoneWithData(prefabRoot);
+            PrefabUtility.SaveAsPrefabAsset(prefabRoot, localPath);
+            PrefabUtility.UnloadPrefabContents(prefabRoot);
+            
+            // Set Asset Bundle Name and Variant
             var asset = AssetImporter.GetAtPath(localPath);
             asset.SetAssetBundleNameAndVariant(avatarBundleName + ".rvav", "LocalAvatar");
-
+            
+            string infoPath = BundleExportUtility.MakeBundleInfoAsset();
+            
             AssetBundleBuild[] ab = new AssetBundleBuild[]
             {
                 new AssetBundleBuild()
                 {
                     assetBundleName = avatarBundleName + ".rvav",
-                    assetNames = new[] {localPath}
+                    assetNames = new[] {localPath, shaderVariants, infoPath}
                 }
             };
-
+            
+            // Build Asset Bundle
             var bundlePath = Path.GetDirectoryName(Application.persistentDataPath) + "\\Reverie\\AvatarBundles";
-            
-            if (!Directory.Exists(bundlePath))
-                Directory.CreateDirectory(bundlePath);
-            
+            if (!Directory.Exists(bundlePath)) Directory.CreateDirectory(bundlePath);
             BuildPipeline.BuildAssetBundles (
                 Path.GetDirectoryName(Application.persistentDataPath) + "\\Reverie\\AvatarBundles",
                 ab, 
@@ -253,13 +298,16 @@ namespace ReverieSDK
                 EditorUserBuildSettings.activeBuildTarget
             );
             
+            // Clean up files
             File.Delete(bundlePath + "\\" + avatarBundleName + ".rvav.manifest");
             File.Delete(bundlePath + "\\AvatarBundles");
             File.Delete(bundlePath + "\\AvatarBundles.manifest");
             File.Delete(Directory.GetCurrentDirectory() + "\\" + localPath);
             File.Delete(Directory.GetCurrentDirectory() + "\\" + localPath + ".meta");
-            DestroyImmediate(clone);
+            File.Delete(infoPath);
+            File.Delete(infoPath + ".meta");
             
+            // Log Success
             Debug.Log("Avatar Exported Successfully");
         }
 
@@ -277,8 +325,7 @@ namespace ReverieSDK
                 defines += ";" + "DYNAMICBONE"; 
                 PlayerSettings.SetScriptingDefineSymbolsForGroup(EditorUserBuildSettings.selectedBuildTargetGroup, defines);
             }
-            EditorUtility.RequestScriptReload();
-            
+
             #if DYNAMICBONE
             foreach (var dynbonecol in clone.transform.GetComponentsInChildren<DynamicBoneCollider>())
             {
@@ -300,13 +347,15 @@ namespace ReverieSDK
                 dyndata.m_Bound = (DynamicBoneColliderBaseData.Bound)dynbonepcol.m_Bound;
             }
             
-            foreach (var dynbone in clone.transform.GetComponentsInChildren<DynamicBone>())
+            var dynbones = clone.transform.GetComponentsInChildren<DynamicBone>();
+            foreach (var dynbone in dynbones)
             {
                 var dyndata = dynbone.gameObject.AddComponent<DynamicBoneData>();
                 
                 dyndata.m_Colliders = new List<DynamicBoneColliderBaseData>();
                 for (int i = 0; i < dynbone.m_Colliders.Count; i++)
                 {
+                    if (dynbone.m_Colliders[i] == null) continue;
                     DynamicBoneColliderBaseData coldata = dynbone.m_Colliders[i].gameObject.GetComponent<DynamicBoneColliderBaseData>();
                     dyndata.m_Colliders.Add(coldata);
                 }
@@ -351,20 +400,6 @@ namespace ReverieSDK
             }
             #endif
         }
-
-        public bool CheckForMissingScripts(GameObject clone)
-        {
-            var objs = clone.GetComponentsInChildren<Transform>(true).Select(x => x.gameObject).ToArray();
-            int count = objs.Sum(GameObjectUtility.RemoveMonoBehavioursWithMissingScript);
-            
-            if (count == 0) return true;
-            bool choice = EditorUtility.DisplayDialog("Avatar Build Warning",
-                $"You have {count} missing scripts on your avatar and they will be removed. Continue?",
-                "Remove and Continue",
-                "Cancel Build"
-            );
-            return choice;
-        }
         
         public static Transform[] GetTopLevelChildren(Transform parent)
         {
@@ -378,6 +413,7 @@ namespace ReverieSDK
             }
             return children.ToArray();
         }
+        
         public void PreviewAngleLimit(EyeConstraintDirection dir)
         {
             switch(dir)

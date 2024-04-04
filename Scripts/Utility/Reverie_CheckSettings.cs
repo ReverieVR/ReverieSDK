@@ -8,7 +8,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using UnityEditor;
 using UnityEngine;
-using System.Text.Json;
 using Debug = UnityEngine.Debug;
 
 namespace ReverieSDK 
@@ -16,69 +15,16 @@ namespace ReverieSDK
     [InitializeOnLoad]
     public static class Reverie_SDK
     {
+        private static string[] sdkLayers = new[] {"Default", "TransparentFX", "Ignore Raycast", "", "Water", "UI", "Player", "LocalPlayer",
+            "Mirror", "Interaction", "UICollider", "PostProcessing", "PostProcessingCamera", "Camera", "HUD", "HiddenMesh"};
+        
         static Reverie_SDK()
         {
-            CheckForUpdates();
-            CheckProjectSettings();
-        }
-
-        [MenuItem("Reverie SDK/Check for Updates")]
-        static async void CheckForUpdates()
-        {
-            string currentVersion = File.ReadAllText(Application.dataPath + "/ReverieSDK/version.json");
-            currentVersion = currentVersion.Split(':')[1].Split("\"")[1];
-
-            WebClient wc = new WebClient();
-            string newVersion = wc.DownloadString("https://raw.githubusercontent.com/ReverieVR/ReverieSDK/main/version.json");
-            newVersion = newVersion.Split(':')[1].Split("\"")[1];
-            
-            Debug.Log("Current Reverie SDK Version: " + currentVersion);
-            Debug.Log("Latest Reverie SDK Version: " + newVersion);
-
-            bool needsUpdate = Convert.ToInt16(currentVersion.Replace(".", "")) < Convert.ToInt16(newVersion.Replace(".", ""));
-            
-            if (needsUpdate)
-            {
-                bool update = EditorUtility.DisplayDialog("Reverie SDK Updater",
-                    $"Current SDK Version: {currentVersion}\nLatest SDK Version: {newVersion}\n\n" +
-                    $"An update is available! Would you like to update now?",
-                    "Yes",
-                    "No"
-                );
-                
-                if (update == false) return;
-                
-                Debug.Log("Updating to Latest SDK Version " + newVersion + "...");
-                
-                var httpClient = new HttpClient();
-                httpClient.DefaultRequestHeaders.UserAgent.Add(
-                    new ProductInfoHeaderValue("ReverieSDK", "1"));
-                var repo = "ReverieVR/ReverieSDK";
-                var contentsUrl = $"https://api.github.com/repos/{repo}/contents";
-                var contentsJson = await httpClient.GetStringAsync(contentsUrl);
-            
-                JsonDocument contents = JsonDocument.Parse(contentsJson);
-                JsonElement root = contents.RootElement;
-
-                // Loop through each element in the array
-                foreach (JsonElement element in root.EnumerateArray())
-                {
-                    // Access the "download_url" property from each object
-                    string downloadUrl = element.GetProperty("download_url").GetString();
-                    if (downloadUrl == null) continue;
-                    if (downloadUrl.Contains(".unitypackage") && !downloadUrl.Contains(".meta"))
-                    {
-                        string path = Application.dataPath + "/ReverieSDK/";
-                        path += downloadUrl.Split('/')[downloadUrl.Split('/').Length - 1];
-                        wc.DownloadFile (downloadUrl, path);
-                        AssetDatabase.ImportPackage(path, false);
-                    }
-                }
-            }
+            UpdateProjectSettings();
         }
         
         [MenuItem("Reverie SDK/Check Project Settings")]
-        static void CheckProjectSettings()
+        static void UpdateProjectSettings()
         {
             bool needsSetup = CheckSettings();
             
@@ -100,6 +46,20 @@ namespace ReverieSDK
 #pragma warning restore CS0618 // Type or member is obsolete
             PlayerSettings.stereoRenderingPath = StereoRenderingPath.Instancing;
             
+            // Setup SDK Layers
+            SerializedObject tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            SerializedProperty layers = tagManager.FindProperty("layers");
+            for (int i = 0; i < sdkLayers.Length; i++)
+            {
+                string originalLayer = layers.GetArrayElementAtIndex(i).stringValue;
+                string sdkLayer = sdkLayers[i];
+                if (originalLayer != sdkLayer)
+                {
+                    layers.GetArrayElementAtIndex(i).stringValue = sdkLayer;
+                }
+            }
+            tagManager.ApplyModifiedProperties();
+            
             needsSetup = EditorUtility.DisplayDialog("Setup Reverie SDK",
                 $"Your project is now setup for the Reverie SDK!",
                 "Great!"
@@ -115,6 +75,16 @@ namespace ReverieSDK
             if (PlayerSettings.virtualRealitySupported != true) return true;
 #pragma warning restore CS0618 // Type or member is obsolete
             if (PlayerSettings.stereoRenderingPath != StereoRenderingPath.Instancing) return true;
+            
+            // Check SDK Layers
+            SerializedObject tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
+            SerializedProperty layers = tagManager.FindProperty("layers");
+            for (int i = 0; i < sdkLayers.Length; i++)
+            {
+                string originalLayer = layers.GetArrayElementAtIndex(i).stringValue;
+                string sdkLayer = sdkLayers[i];
+                if (originalLayer != sdkLayer) return true;
+            }
 
             return false;
         }
